@@ -7,9 +7,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.awt.event.ComponentListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -66,7 +71,6 @@ public class JHelpClient extends JFrame {
             nextButton.setEnabled(false);
             previousButton.setEnabled(false);
             deleteButton.setEnabled(false);
-            definitionTextPane.setEditable(false);
             String request = termTextField.getText().trim();
             if(request.isEmpty()) return;
             foundDefinitions.clear();
@@ -101,9 +105,7 @@ public class JHelpClient extends JFrame {
         });
 
         editButton.addActionListener(e -> {
-            if (!termTextField.getText().isEmpty() && !definitionTextPane.getText().isEmpty()) {
-                definitionTextPane.setEditable(true);
-            }
+
             try (Socket socket = new Socket(InetAddress.getLocalHost(), SERVER_PORT)) {
                 log.info("New edit socket created at {}", InetAddress.getLocalHost() + ":" + SERVER_PORT );
                 try (ObjectOutputStream ous = new ObjectOutputStream(socket.getOutputStream());
@@ -118,17 +120,109 @@ public class JHelpClient extends JFrame {
                     switch(response){
                         case SUCCESS:
                             showInfo("Current definition was deleted from DB, add a new one if needed.", "Success");
-//                            editButton.setEnabled(false);
                             break;
                         case FAILED:
                             showInfo("Operation failed: specified term or definition were not found.", "Fail");
-//                            editButton.setEnabled(false);
                             break;
                     }
                 }
             } catch (IOException | ClassNotFoundException ex) {
                 ex.printStackTrace();
             }
+        });
+
+        definitionTextPane.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                if(e.getDocument().getLength() == 0){
+                    editButton.setEnabled(false);
+                    addButton.setEnabled(false);
+                    deleteButton.setEnabled(false);
+                    if(termTextField.getText().trim().isEmpty()){
+                        clearFormButton.setEnabled(false);
+                    }
+                }
+                else {
+                    if(!termTextField.getText().trim().isEmpty()){
+                        editButton.setEnabled(true);
+                        addButton.setEnabled(true);
+                        deleteButton.setEnabled(true);
+                    }
+                    clearFormButton.setEnabled(true);
+                }
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                if(e.getDocument().getLength() == 0){
+                    editButton.setEnabled(false);
+                    addButton.setEnabled(false);
+                    deleteButton.setEnabled(false);
+                    if(termTextField.getText().trim().isEmpty()){
+                        clearFormButton.setEnabled(false);
+                    }
+                }
+                else {
+                    if(!termTextField.getText().trim().isEmpty()){
+                        editButton.setEnabled(true);
+                        addButton.setEnabled(true);
+                        deleteButton.setEnabled(true);
+                    }
+                    clearFormButton.setEnabled(true);
+                }
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {}
+        });
+
+        termTextField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                if(e.getDocument().getLength() == 0){
+                    editButton.setEnabled(false);
+                    addButton.setEnabled(false);
+                    deleteButton.setEnabled(false);
+                    findButton.setEnabled(false);
+                    if(definitionTextPane.getText().trim().isEmpty()){
+                        clearFormButton.setEnabled(false);
+                    }
+                }
+                else {
+                    if (!definitionTextPane.getText().trim().isEmpty()){
+                        editButton.setEnabled(true);
+                        addButton.setEnabled(true);
+                        deleteButton.setEnabled(true);
+                    }
+                    findButton.setEnabled(true);
+                    clearFormButton.setEnabled(true);
+                }
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                if(e.getDocument().getLength() == 0){
+                    editButton.setEnabled(false);
+                    addButton.setEnabled(false);
+                    deleteButton.setEnabled(false);
+                    findButton.setEnabled(false);
+                    if(definitionTextPane.getText().trim().isEmpty()){
+                        clearFormButton.setEnabled(false);
+                    }
+                }
+                else {
+                    if (!definitionTextPane.getText().trim().isEmpty()){
+                        editButton.setEnabled(true);
+                        addButton.setEnabled(true);
+                        deleteButton.setEnabled(true);
+                    }
+                    findButton.setEnabled(true);
+                    clearFormButton.setEnabled(true);
+                }
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {}
         });
 
         clearFormButton.addActionListener(e -> {
@@ -141,27 +235,6 @@ public class JHelpClient extends JFrame {
             addButton.setEnabled(false);
             findButton.setEnabled(false);
             clearFormButton.setEnabled(false);
-        });
-
-        termTextField.addFocusListener(new FocusListener() {
-
-            @Override
-            public void focusGained(FocusEvent e) {
-                addButton.setEnabled(true);
-                findButton.setEnabled(true);
-                clearFormButton.setEnabled(true);
-                deleteButton.setEnabled(true);
-                definitionTextPane.setEditable(true);
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (termTextField.getText().isEmpty()) {
-                    addButton.setEnabled(false);
-                    findButton.setEnabled(false);
-                    clearFormButton.setEnabled(false);
-                }
-            }
         });
 
         nextButton.addActionListener(e -> {
@@ -193,20 +266,10 @@ public class JHelpClient extends JFrame {
         });
 
         addButton.addActionListener(e -> {
-            definitionTextPane.setEditable(false);
+
             String term = termTextField.getText().trim();
             String definition = definitionTextPane.getText().trim();
 
-            if (term.isEmpty() && definition.isEmpty()) {
-                showWarning("Nothing to add!", "Empty arguments");
-                return;
-            } else if (term.isEmpty()) {
-                showWarning("Term can not be empty!", "Empty term");
-                return;
-            } else if (definition.isEmpty()) {
-                showWarning("Definition can not be empty!", "Empty definition");
-                return;
-            }
             try (Socket socket = new Socket(InetAddress.getLocalHost(), SERVER_PORT)) {
                 log.info("New add socket created at {}", InetAddress.getLocalHost() + ":" + SERVER_PORT );
                 try (ObjectOutputStream ous = new ObjectOutputStream(socket.getOutputStream());
@@ -234,11 +297,7 @@ public class JHelpClient extends JFrame {
         });
 
         deleteButton.addActionListener(e -> {
-            definitionTextPane.setEditable(false);
             String term = termTextField.getText().trim();
-            if (term.isEmpty()) {
-                showWarning("Term can not be empty", "Empty term");
-                return;}
             try (Socket socket = new Socket(InetAddress.getLocalHost(), SERVER_PORT)) {
                 log.info("New delete socket created at {}", InetAddress.getLocalHost() + ":" + SERVER_PORT );
                 try (ObjectOutputStream ous = new ObjectOutputStream(socket.getOutputStream());
@@ -272,7 +331,6 @@ public class JHelpClient extends JFrame {
         addButton.setEnabled(false);
         findButton.setEnabled(false);
         clearFormButton.setEnabled(false);
-        definitionTextPane.setEditable(false);
     }
 
     private void showFirstDefinition(){
@@ -284,21 +342,12 @@ public class JHelpClient extends JFrame {
         definitionTextPane.setText(foundDefinitions.get(0));
     }
 
-    private void showWarning(String message, String title) {
-        showMessageDialog(this, message, title, WARNING_MESSAGE);
-    }
-
     private void showInfo(String message, String title) {
         showMessageDialog(this, message, title, INFORMATION_MESSAGE);
     }
 
-//    public static void main(String[] args) {
-//        SwingUtilities.invokeLater(JHelpClient::new);
-//    }
-
     private void createUIComponents() {
         // TODO: place custom component creation code here
-
     }
 
     /**
